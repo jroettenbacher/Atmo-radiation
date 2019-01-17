@@ -174,9 +174,12 @@ def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
 tau = np.array(range(1, 21))  # cloud optical thickness
 omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
 g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
-n_photon = 10000
+n_photon = np.arange(0, 50001, 5000)
 plot_data = np.empty((len(n_photon), 6))
 h = 0
+for x in range(len(n_photon)):
+    plot_data[h] = monte_carlo(10, 0.99, 0.9, n_photon[x])
+    h += 1
 for i in range(len(tau)):
     for j in range(len(omega)):
         for k in range(len(g)):
