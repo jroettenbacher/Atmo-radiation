@@ -127,7 +127,7 @@ def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
     :param n_photon: number of photons with which the model should run
     :param n_layer: number of layer in the cloud, default = 50
     :returns : Input parameters tau, omega and g. Additionally the fraction of FTOA, FBOA and in cloud absorbed
-                particles is returned.
+                photons is returned.
     """
     ground_count = 0  # counter for photons reaching the ground
     toa_up_count = 0  # counter for photons reflected into space
