@@ -63,9 +63,8 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
     return angle, fun_layer
 
 
-# %%
+# %% test what number of layers is appropriate
 
-# test what number of layers is appropriate
 surface_albedo = 0.05
 omega = 1.  # single scattering albedo
 g = 0.9  # asymmetry parameter
@@ -106,8 +105,9 @@ for i in range(len(n_layer)):
     output[i] = (n_layer[i], toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon)
     print(output[i])
 
+# %%
+
 plt.xlabel("Number of layers")
-# plt.axes(output[:, 0])
 plt.plot(output[:, 1])
 plt.plot(output[:, 2])
 plt.show()  # 50 layers should be enough
@@ -115,16 +115,16 @@ plt.show()  # 50 layers should be enough
 # %%
 
 
-def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
+def monte_carlo(tau, omega, g, n_photon, theta=20, delta_tau=50):
     """
     Runs a MonteCarlo simulation with the given parameters.
     Parameters
     ----
-    :param theta: Incoming solar zenith angle for photon hitting cloud top
     :param tau: optical thickness of cloud
     :param omega: single scattering albedo
     :param g: asymmetry parameter of the phase function
     :param n_photon: number of photons with which the model should run
+    :param theta: Incoming solar zenith angle for photon hitting cloud top in degree
     :param n_layer: number of layer in the cloud, default = 50
     :returns : Input parameters tau, omega and g. Additionally the fraction of FTOA, FBOA and in cloud absorbed
                 photons is returned.
@@ -132,7 +132,7 @@ def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
     ground_count = 0  # counter for photons reaching the ground
     toa_up_count = 0  # counter for photons reflected into space
     in_cloud_count = 0  # counter for photons absorbed in the cloud
-    delta_tau = (tau / n_layer)  # optical thickness of each layer
+    n_layer = tau / delta_tau  # number of layers in cloud
     surface_albedo = 0.05
     for n_p in range(1, n_photon+1):
         theta = theta/180*np.pi
@@ -142,9 +142,6 @@ def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
         while photon_in_cloud == True:
             # print(in_layer)
             # print(theta/np.pi*180)
-            if in_layer is None:
-                photon_in_cloud = False
-                in_cloud_count += 1
             if in_layer == 0:
                 if rn.random() > surface_albedo:
                     photon_in_cloud = False
@@ -154,6 +151,9 @@ def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
                     if theta > (2*np.pi):
                         theta = theta - (2*np.pi)
                     in_layer += 1
+            if in_layer is None:
+                photon_in_cloud = False
+                in_cloud_count += 1
             theta, in_layer = layer(tau_layer=delta_tau, angle=theta, fun_layer=in_layer, fun_omega=omega,
                                     fun_g=g)
             if in_layer == n_layer + 1:
@@ -164,18 +164,19 @@ def monte_carlo(theta, tau, omega, g, n_photon, n_layer=50):
     return tau, omega, g, toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon
 
 
-# vary cloud optical thickness, single scattering albedo and asymmetry parameter
+# %% vary cloud optical thickness, single scattering albedo and asymmetry parameter
 tau = np.array(range(1, 21))  # cloud optical thickness
 omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
 g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
 n_layer = 50
 n_photon = 5000
-plot_data = np.empty((len(tau)*len(omega), 6))
+plot_data = np.empty((1, 6))
 h = 0
 for i in range(len(tau)):
     for j in range(len(omega)):
-        plot_data[h] = monte_carlo(20, tau[i], omega[j], 0.9, 5000, 50)
-        h += 1
+        for k in range(len(g)):
+            plot_data[h] = monte_carlo(10, 1, 0.9, 5000)
+            h += 1
 
 # %%
 
