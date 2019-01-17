@@ -11,13 +11,10 @@ single scattering albedo omega and scattering phase function represented by the 
 Goal in Task B: Differentiate FBOA into direct transmitted and scattered diffuse radiation
 """
 # %%
-import random as rn
 import numpy as np
 import matplotlib.pyplot as plt
-# %%
-# Starting variables
-# cext = 2*10**-10
-r = 5*10**-6  # droplet radius
+
+
 # %%
 
 
@@ -38,17 +35,17 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
         defines single scattering albedo
     fun_g: float
         defines asymmetry parameter g
-    Returns
+    Return
     ----
     angle: float
            the angle at which the photon continues its path through the cloud
     fun_layer: integer
                the layer the photon is in after the processes
     """
-    tau1 = abs(np.cos(angle)*np.log(rn.random()))
+    tau1 = abs(np.cos(angle)*np.log(np.random.random()))
     if tau1 < tau_layer:
-        if rn.random() < fun_omega:
-            my_scatter = 0.5/fun_g*((1+fun_g**2)-((1-fun_g**2)/(1+fun_g-2*fun_g*rn.random()))**2)
+        if np.random.random() < fun_omega:
+            my_scatter = 0.5/fun_g*((1+fun_g**2)-((1-fun_g**2)/(1+fun_g-2*fun_g*np.random.random()))**2)
             angle = angle + np.arccos(my_scatter)
             if angle > (2*np.pi):
                 angle = angle - 2*np.pi
@@ -63,10 +60,10 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
     return angle, fun_layer
 
 
-# %% test what number of layers is appropriate
+# %% test what layer thickness is appropriate
 
 surface_albedo = 0.05
-omega = 1.  # single scattering albedo
+omega = 0.99  # single scattering albedo
 g = 0.9  # asymmetry parameter
 tau = 10  # cloud optical thickness
 n_layer = np.array(range(10, 101))
@@ -86,15 +83,15 @@ for i in range(len(n_layer)):
         while photon_in_cloud == True:
             # print(in_layer)
             # print(theta/np.pi*180)
-            if in_layer is None:
-                photon_in_cloud = False
-                in_cloud_count += 1
             if in_layer == 0:
-                if rn.random() > surface_albedo:
+                if np.random.random() > surface_albedo:
                     photon_in_cloud = False
                     ground_count += 1
                 else:
                     in_layer += 1
+            if in_layer is None:
+                photon_in_cloud = False
+                in_cloud_count += 1
             theta, in_layer = layer(tau_layer=delta_tau[i], angle=theta, fun_layer=in_layer,
                                     fun_omega=1, fun_g=0.9)
             if in_layer == n_layer[i] + 1:
@@ -106,28 +103,37 @@ for i in range(len(n_layer)):
     print(output[i])
 
 # %%
-
 plt.xlabel("Number of layers")
-plt.plot(output[:, 1])
-plt.plot(output[:, 2])
+plt.plot(n_layer, output[:, 1])
+plt.xlabel("Number of layers")
+plt.plot(n_layer, output[:, 2])
+plt.legend(("TOA", "BOA"))
 plt.show()  # 50 layers should be enough
 
 # %%
 
 
-def monte_carlo(tau, omega, g, n_photon, theta=20, delta_tau=50):
+def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
     """
     Runs a MonteCarlo simulation with the given parameters.
     Parameters
     ----
-    :param tau: optical thickness of cloud
-    :param omega: single scattering albedo
-    :param g: asymmetry parameter of the phase function
-    :param n_photon: number of photons with which the model should run
-    :param theta: Incoming solar zenith angle for photon hitting cloud top in degree
-    :param n_layer: number of layer in the cloud, default = 50
-    :returns : Input parameters tau, omega and g. Additionally the fraction of FTOA, FBOA and in cloud absorbed
-                photons is returned.
+    tau: integer
+        optical thickness of cloud
+    omega: float
+        single scattering albedo
+    g: float
+        asymmetry parameter of the phase function
+    n_photon: integer
+        number of photons with which the model should run
+    theta: float
+        Incoming solar zenith angle for photon hitting cloud top in degree
+    delta_tau: integer
+        thickness of each individual cloud layer, default = 50
+    Returns
+    ----
+    Input parameters tau, omega and g. Additionally the fraction of FTOA, FBOA and in cloud absorbed
+    photons is returned.
     """
     ground_count = 0  # counter for photons reaching the ground
     toa_up_count = 0  # counter for photons reflected into space
@@ -143,7 +149,7 @@ def monte_carlo(tau, omega, g, n_photon, theta=20, delta_tau=50):
             # print(in_layer)
             # print(theta/np.pi*180)
             if in_layer == 0:
-                if rn.random() > surface_albedo:
+                if np.random.random() > surface_albedo:
                     photon_in_cloud = False
                     ground_count += 1
                 else:
@@ -168,14 +174,13 @@ def monte_carlo(tau, omega, g, n_photon, theta=20, delta_tau=50):
 tau = np.array(range(1, 21))  # cloud optical thickness
 omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
 g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
-n_layer = 50
-n_photon = 5000
-plot_data = np.empty((1, 6))
+n_photon = 10000
+plot_data = np.empty((len(n_photon), 6))
 h = 0
 for i in range(len(tau)):
     for j in range(len(omega)):
         for k in range(len(g)):
-            plot_data[h] = monte_carlo(10, 1, 0.9, 5000)
+            plot_data[h] = monte_carlo(10, 1, 0.9, n_photon)
             h += 1
 
 # %%
