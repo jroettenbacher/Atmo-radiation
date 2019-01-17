@@ -60,57 +60,57 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
     return angle, fun_layer
 
 
-# %% test what layer thickness is appropriate
+# # %% test what layer thickness is appropriate
+#
+# surface_albedo = 0.05
+# omega = 0.99  # single scattering albedo
+# g = 0.9  # asymmetry parameter
+# tau = 10  # cloud optical thickness
+# n_layer = np.array(range(10, 101))
+# n_photon = 5000
+# delta_tau = (tau / n_layer)  # optical thickness of each layer
+# output = np.empty((len(n_layer), 4))
+# for i in range(len(n_layer)):
+#     print(i)
+#     ground_count = 0  # counter for photons reaching the ground
+#     toa_up_count = 0  # counter for photons reflected into space
+#     in_cloud_count = 0  # counter for photons absorbed in the cloud
+#     for n_p in range(1, n_photon+1):
+#         theta = 20/180*np.pi
+#         photon_in_cloud = True
+#         in_layer = n_layer[i]
+#         # print("***************************")
+#         while photon_in_cloud == True:
+#             # print(in_layer)
+#             # print(theta/np.pi*180)
+#             if in_layer == 0:
+#                 if np.random.random() > surface_albedo:
+#                     photon_in_cloud = False
+#                     ground_count += 1
+#                 else:
+#                     in_layer += 1
+#             if in_layer is None:
+#                 photon_in_cloud = False
+#                 in_cloud_count += 1
+#             theta, in_layer = layer(tau_layer=delta_tau[i], angle=theta, fun_layer=in_layer,
+#                                     fun_omega=1, fun_g=0.9)
+#             if in_layer == n_layer[i] + 1:
+#                 photon_in_cloud = False
+#                 toa_up_count += 1
+#     print("F_TOA: %8.6f \nF_BOA: %8.6f \nAbsorbed: %8.6f" % (toa_up_count/n_photon, ground_count/n_photon,
+#           in_cloud_count/n_photon))
+#     output[i] = (n_layer[i], toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon)
+#     print(output[i])
 
-surface_albedo = 0.05
-omega = 0.99  # single scattering albedo
-g = 0.9  # asymmetry parameter
-tau = 10  # cloud optical thickness
-n_layer = np.array(range(10, 101))
-n_photon = 5000
-delta_tau = (tau / n_layer)  # optical thickness of each layer
-output = np.empty((len(n_layer), 4))
-for i in range(len(n_layer)):
-    print(i)
-    ground_count = 0  # counter for photons reaching the ground
-    toa_up_count = 0  # counter for photons reflected into space
-    in_cloud_count = 0  # counter for photons absorbed in the cloud
-    for n_p in range(1, n_photon+1):
-        theta = 20/180*np.pi
-        photon_in_cloud = True
-        in_layer = n_layer[i]
-        # print("***************************")
-        while photon_in_cloud == True:
-            # print(in_layer)
-            # print(theta/np.pi*180)
-            if in_layer == 0:
-                if np.random.random() > surface_albedo:
-                    photon_in_cloud = False
-                    ground_count += 1
-                else:
-                    in_layer += 1
-            if in_layer is None:
-                photon_in_cloud = False
-                in_cloud_count += 1
-            theta, in_layer = layer(tau_layer=delta_tau[i], angle=theta, fun_layer=in_layer,
-                                    fun_omega=1, fun_g=0.9)
-            if in_layer == n_layer[i] + 1:
-                photon_in_cloud = False
-                toa_up_count += 1
-    print("F_TOA: %8.6f \nF_BOA: %8.6f \nAbsorbed: %8.6f" % (toa_up_count/n_photon, ground_count/n_photon,
-          in_cloud_count/n_photon))
-    output[i] = (n_layer[i], toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon)
-    print(output[i])
+# # %% plot result of layer thickness test
+# plt.xlabel("Number of layers")
+# plt.plot(n_layer, output[:, 1])
+# plt.xlabel("Number of layers")
+# plt.plot(n_layer, output[:, 2])
+# plt.legend(("TOA", "BOA"))
+# plt.show()  # 50 layers should be enough
 
-# %%
-plt.xlabel("Number of layers")
-plt.plot(n_layer, output[:, 1])
-plt.xlabel("Number of layers")
-plt.plot(n_layer, output[:, 2])
-plt.legend(("TOA", "BOA"))
-plt.show()  # 50 layers should be enough
-
-# %%
+# %% monte_carlo method
 
 
 def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
@@ -170,22 +170,28 @@ def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
     return tau, omega, g, toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon
 
 
-# %% vary cloud optical thickness, single scattering albedo and asymmetry parameter
+# %% vary cloud optical thickness, single scattering albedo, asymmetry parameter and or number of photons
 tau = np.array(range(1, 21))  # cloud optical thickness
 omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
 g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
-n_photon = np.arange(0, 50001, 5000)
+n_photon = np.arange(1, 20002, 5000)
 plot_data = np.empty((len(n_photon), 6))
 h = 0
 for x in range(len(n_photon)):
-    plot_data[h] = monte_carlo(10, 0.99, 0.9, n_photon[x])
+    plot_data[h] = monte_carlo(tau=10, omega=0.999, g=0.9, n_photon=n_photon[x])
     h += 1
-for i in range(len(tau)):
-    for j in range(len(omega)):
-        for k in range(len(g)):
-            plot_data[h] = monte_carlo(10, 1, 0.9, n_photon)
-            h += 1
+    print(h)
+# for i in range(len(tau)):
+#     for j in range(len(omega)):
+#         for k in range(len(g)):
+#             plot_data[h] = monte_carlo(10, 1, 0.9, n_photon)
+#             h += 1
 
+# %% plot photon number dependency
+
+plt.plot(plot_data[:, 3])
+plt.plot(plot_data[:, 2])
+plt.show()
 # %%
 
 plt.plot(plot_data[:, 0], plot_data[:, 3], "r")
