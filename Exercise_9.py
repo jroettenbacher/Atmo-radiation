@@ -13,9 +13,10 @@ Goal in Task B: Differentiate FBOA into direct transmitted and scattered diffuse
 # %%
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas
 
 
-# %%
+# %% layer function
 
 
 def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
@@ -130,7 +131,7 @@ def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=0.2):
     theta: float
         Incoming solar zenith angle for photon hitting cloud top in degree
     delta_tau: float
-        thickness of each individual cloud layer, default = 50
+        thickness of each individual cloud layer, default = 0.2
     Returns
     ----
     Input parameters tau, omega and g. Additionally the fraction of FTOA, FBOA and in cloud absorbed
@@ -171,10 +172,7 @@ def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=0.2):
     return tau, omega, g, toa_up_count/n_photon, ground_count/n_photon, in_cloud_count/n_photon
 
 
-# %% vary cloud optical thickness, single scattering albedo, asymmetry parameter and or number of photons
-tau = np.array(range(1, 21))  # cloud optical thickness
-omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
-g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
+# %% vary number of photons
 n_photon = np.arange(1, 20002, 5000)
 plot_data1 = np.empty((len(n_photon), 6))
 h = 0
@@ -182,23 +180,34 @@ for x in range(len(n_photon)):
     plot_data1[h] = monte_carlo(tau=10, omega=0.999, g=0.9, n_photon=n_photon[x])
     h += 1
     print(h)
+df = pandas.DataFrame({"tau": plot_data1[:, 0], "omega": plot_data1[:, 1], "g": plot_data1[:, 2],
+                      "FTOA": plot_data1[:, 3], "FBOA": plot_data1[:, 4], "Absorbed": plot_data1[:, 5]})
+df.to_csv("C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data1.csv")
+
+# %% vary cloud optical thickness, single scattering albedo and asymmetry parameter
+tau = np.array(range(1, 21))  # cloud optical thickness
+omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
+g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
 plot_data2 = np.empty((len(tau)*len(omega)*len(g), 6))
 h = 0
 for i in range(len(tau)):
     for j in range(len(omega)):
         for k in range(len(g)):
-            plot_data2[h] = monte_carlo(tau[i], omega[j], g[k], n_photon=5000)
+            plot_data2[h] = monte_carlo(tau=tau[i], omega=omega[j], g=g[k], n_photon=5000)
             h += 1
+            print(h)
 
 # %% plot photon number dependency
 
-plt.plot(plot_data[:, 3])
-plt.plot(plot_data[:, 2])
+plt.plot(n_photon[1:], plot_data1[1:, 3])
+plt.plot(n_photon[1:], plot_data1[1:, 4])
 plt.show()
-# %%
+# virtually no difference between a run with 5000 photons and one with 20000
 
-plt.plot(plot_data[:, 0], plot_data[:, 3], "r")
-plt.plot(plot_data[:, 0], plot_data[:, 2], "b")
+# %% plot tau dependencies with varying omega
+
+plt.plot(plot_data2[:, 0], plot_data2[:, 3], "r")
+plt.plot(plot_data2[:, 0], plot_data2[:, 2], "b")
 plt.xlabel("Optical Thickness")
 plt.ylabel("Percent")
 plt.show()
