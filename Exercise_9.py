@@ -29,7 +29,7 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
         thickness of layer
     angle: float
         incoming angle of photon in radiant
-    fun_layer: integer
+    fun_layer: float
         layer photon is currently in. 0 = ground
     fun_omega: float
         defines single scattering albedo
@@ -109,11 +109,12 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
 # plt.plot(n_layer, output[:, 2])
 # plt.legend(("TOA", "BOA"))
 # plt.show()  # 50 layers should be enough
+# tau/n_layer = delta_tau, here: delta_tau = 0.2
 
 # %% monte_carlo method
 
 
-def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
+def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=0.2):
     """
     Runs a MonteCarlo simulation with the given parameters.
     Parameters
@@ -128,7 +129,7 @@ def monte_carlo(tau, omega, g, n_photon=5000, theta=20, delta_tau=50):
         number of photons with which the model should run
     theta: float
         Incoming solar zenith angle for photon hitting cloud top in degree
-    delta_tau: integer
+    delta_tau: float
         thickness of each individual cloud layer, default = 50
     Returns
     ----
