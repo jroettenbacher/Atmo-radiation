@@ -176,17 +176,19 @@ tau = np.array(range(1, 21))  # cloud optical thickness
 omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
 g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
 n_photon = np.arange(1, 20002, 5000)
-plot_data = np.empty((len(n_photon), 6))
+plot_data1 = np.empty((len(n_photon), 6))
 h = 0
 for x in range(len(n_photon)):
-    plot_data[h] = monte_carlo(tau=10, omega=0.999, g=0.9, n_photon=n_photon[x])
+    plot_data1[h] = monte_carlo(tau=10, omega=0.999, g=0.9, n_photon=n_photon[x])
     h += 1
     print(h)
-# for i in range(len(tau)):
-#     for j in range(len(omega)):
-#         for k in range(len(g)):
-#             plot_data[h] = monte_carlo(10, 1, 0.9, n_photon)
-#             h += 1
+plot_data2 = np.empty((len(tau)*len(omega)*len(g), 6))
+h = 0
+for i in range(len(tau)):
+    for j in range(len(omega)):
+        for k in range(len(g)):
+            plot_data2[h] = monte_carlo(tau[i], omega[j], g[k], n_photon=5000)
+            h += 1
 
 # %% plot photon number dependency
 
