@@ -64,7 +64,7 @@ def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
 # # %% test what layer thickness is appropriate
 #
 # surface_albedo = 0.05
-# omega = 0.99  # single scattering albedo
+# omega = 1  # single scattering albedo
 # g = 0.9  # asymmetry parameter
 # tau = 10  # cloud optical thickness
 # n_layer = np.array(range(10, 101))
@@ -182,12 +182,13 @@ for x in range(len(n_photon)):
     print(h)
 df = pandas.DataFrame({"tau": plot_data1[:, 0], "omega": plot_data1[:, 1], "g": plot_data1[:, 2],
                       "FTOA": plot_data1[:, 3], "FBOA": plot_data1[:, 4], "Absorbed": plot_data1[:, 5]})
-df.to_csv("C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data1.csv")
+df.to_csv("C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data1.csv",
+          index=False)
 
 # %% vary cloud optical thickness, single scattering albedo and asymmetry parameter
 tau = np.array(range(1, 21))  # cloud optical thickness
-omega = np.arange(0.5, 1.01, 0.1)  # single scattering albedo
-g = np.arange(-0.9, 1, 0.1)  # asymmetry parameter
+omega = np.array([0.9, 0.99, 0.999, 1])  # single scattering albedo
+g = np.arange(-0.9, 1, 0.3)  # asymmetry parameter
 plot_data2 = np.empty((len(tau)*len(omega)*len(g), 6))
 h = 0
 for i in range(len(tau)):
@@ -197,6 +198,10 @@ for i in range(len(tau)):
             h += 1
             print(h)
 
+df1 = pandas.DataFrame({"tau": plot_data2[:, 0], "omega": plot_data2[:, 1], "g": plot_data2[:, 2],
+                      "FTOA": plot_data2[:, 3], "FBOA": plot_data2[:, 4], "Absorbed": plot_data2[:, 5]})
+df1.to_csv("C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data2.csv",
+          index=False)
 # %% plot photon number dependency
 
 plt.plot(n_photon[1:], plot_data1[1:, 3])
