@@ -1,0 +1,367 @@
+---
+title: "Atmosphärische Strahlung - Excercise 9"
+author: "Johannes Röttenbacher"
+date: "22.01.2019"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: 
+    fig_caption: yes
+  pdf_document: 
+    df_print: kable
+    fig_caption: yes
+    fig_height: 5.5
+    fig_width: 8
+lang: German
+toc: null
+---
+
+# 9.1 Monte Carlo Model
+
+### Python Code to run the Monte Carlo Model
+
+The idea is to have a function which runs for each layer the photon needs to pass through. Then the cloud is an additional function. All photons are counted and split into groups depending on where and how they leave the system. Photons can be either reflected $(F^\uparrow_{TOA})$, transmitted to the ground $(F^\downarrow_{BOA})$ or absorbed. The photons which reach the ground and are not reflected by the surface are divided into diffuse $(F^\downarrow_{BOA, diff})$and direct $(F^\downarrow_{BOA, dir})$ irradiance by two methods. The first divides them depending on whether they have been scattered and the second on their deviation from the solar zenith angle.
+
+```{python eval=FALSE, include=TRUE}
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Dec  25 10:46:25 2018
+
+@author: Johannes Roettenbacher
+
+Script for a Monte-Carlo simulation for calculating radiative transfer through a single cloud with variable number
+of layers.
+Goal in Task A: Calculate and plot F upward TOA, F downward BOA in dependence of optical thickness tau (C_ext),
+single scattering albedo omega and scattering phase function represented by the asymmetry parameter g.
+Goal in Task B: Differentiate FBOA into direct transmitted and scattered diffuse radiation
+"""
+# %%
+import numpy as np
+import pandas
+
+
+# %% layer function
+
+
+def layer(tau_layer, angle, fun_layer, fun_omega, fun_g):
+    """
+    Computes whether a photon is extinct or not and whether it is scattered or absorbed.
+    If it is scattered the scatter direction is computed.
+
+    Parameters
+    ----
+    tau_layer: float
+        thickness of layer
+    angle: float
+        incoming angle of photon in radiant
+    fun_layer: float
+        layer photon is currently in. 0 = ground
+    fun_omega: float
+        defines single scattering albedo
+    fun_g: float
+        defines asymmetry parameter g
+    Return
+    ----
+    angle: float
+           the angle at which the photon continues its path through the cloud
+    fun_layer: integer
+               the layer the photon is in after the processes
+    scattered: bool
+               variable which tells whether photon has been scattered or not
+    """
+    tau1 = abs(np.cos(angle) * np.log(np.random.random()))
+    if tau1 < tau_layer:
+        scattered = True
+        if np.random.random() < fun_omega:
+            my_scatter = (0.5 / fun_g) * ((1 + fun_g ** 2) - ((1 - fun_g ** 2) / (1 + fun_g - 2 * fun_g * np.random.random())) ** 2)
+            angle = angle + np.arccos(my_scatter)
+            if angle > (2 * np.pi):
+                angle = angle - 2 * np.pi
+        else:
+            fun_layer = None
+    else:
+        scattered = False
+    if angle < (np.pi / 2) or angle > (3 * np.pi / 2):
+        direction = -1
+    else:
+        direction = 1
+    if fun_layer is not None:
+        fun_layer = fun_layer + direction
+    return angle, fun_layer, scattered
+
+
+# %% test what layer thickness is appropriate
+
+surface_albedo = 0.05
+omega = 1  # single scattering albedo
+g = 0.9  # asymmetry parameter
+tau = 10  # cloud optical thickness
+n_layer = np.array(range(10, 101))
+n_photon = 5000
+delta_tau = (tau / n_layer)  # optical thickness of each layer
+output = np.empty((len(n_layer), 3))
+for i in range(len(n_layer)):
+    print(i / len(n_layer))
+    ground_count = 0  # counter for photons reaching the ground
+    toa_up_count = 0  # counter for photons reflected into space
+    in_cloud_count = 0  # counter for photons absorbed in the cloud
+    for n_p in range(1, n_photon + 1):
+        theta = 20 / 180 * np.pi
+        photon_in_cloud = True
+        in_layer = n_layer[i]
+        while photon_in_cloud is True:
+            if in_layer == 0:
+                if np.random.random() > surface_albedo:
+                    photon_in_cloud = False
+                    ground_count += 1
+                else:
+                    in_layer += 1
+            if in_layer is None:
+                photon_in_cloud = False
+                in_cloud_count += 1
+            theta, in_layer, scattered = layer(tau_layer=delta_tau[i], angle=theta, fun_layer=in_layer,
+                                               fun_omega=1, fun_g=0.9)
+            if in_layer == n_layer[i] + 1:
+                photon_in_cloud = False
+                toa_up_count += 1
+    output[i] = (n_layer[i], toa_up_count / n_photon, ground_count / n_photon)
+
+df_output = pandas.DataFrame({"n_layer": output[:, 0], "FTOA": output[:, 1], "FBOA": output[:, 2]})
+df_output.to_csv(
+    "C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/delta_tau_layer_depend.csv",
+    index=False)
+
+
+# %% monte_carlo method
+
+
+def monte_carlo(tau, omega, g, n_photon=5000, theta_in=20, delta_tau=0.2):
+    """
+    Runs a MonteCarlo simulation with the given parameters.
+    Parameters
+    ----
+    tau: integer
+        optical thickness of cloud
+    omega: float
+        single scattering albedo
+    g: float
+        asymmetry parameter of the phase function
+    n_photon: integer
+        number of photons with which the model should run
+    theta_in: float
+        Incoming solar zenith angle for photon hitting cloud top in degree
+    delta_tau: float
+        thickness of each individual cloud layer, default = 0.2
+    Returns
+    ----
+    Input parameters tau, omega, g and theta_in. Additionally the fraction of FTOA, FBOA,
+    FBOA_diffuse1/2, FBOA_direct1/2 and in cloud absorbed photons is returned.
+    """
+    ground_count = 0  # counter for photons reaching the ground
+    toa_up_count = 0  # counter for photons reflected into space
+    in_cloud_count = 0  # counter for photons absorbed in the cloud
+    boa_direct1 = 0  # counter for photons directly transmitted to surface, method 1
+    boa_diffuse1 = 0  # counter for photons diffusely transmitted to surface, method 1
+    boa_direct2 = 0  # counter for photons directly transmitted to surface, method 2
+    boa_diffuse2 = 0  # counter for photons diffusely transmitted to surface, method 2
+    n_layer = tau / delta_tau  # number of layers in cloud
+    surface_albedo = 0.05
+    for n_p in range(1, n_photon + 1):
+        theta = theta_in / 180 * np.pi
+        photon_in_cloud = True
+        in_layer = n_layer
+        diffuse = False
+        while photon_in_cloud is True:
+            if in_layer == 0:
+                if np.random.random() > surface_albedo:
+                    photon_in_cloud = False
+                    ground_count += 1
+                    if diffuse is True:
+                        boa_diffuse1 += 1
+                    else:
+                        boa_direct1 += 1
+                    if (theta_in - (1 / 180 * np.pi)) < theta < (theta_in + (1 / 180 * np.pi)):
+                        boa_direct2 += 1
+                    else:
+                        boa_diffuse2 += 1
+                else:
+                    theta = theta + np.pi
+                    if theta > (2 * np.pi):
+                        theta = theta - (2 * np.pi)
+                    in_layer += 1
+            if in_layer is None:
+                photon_in_cloud = False
+                in_cloud_count += 1
+            theta, in_layer, scattered = layer(tau_layer=delta_tau, angle=theta, fun_layer=in_layer, fun_omega=omega,
+                                               fun_g=g)
+            if scattered is True:
+                diffuse = True
+            if in_layer == n_layer + 1:
+                photon_in_cloud = False
+                toa_up_count += 1
+    return tau, omega, g, toa_up_count / n_photon, ground_count / n_photon, in_cloud_count / n_photon, \
+           boa_diffuse1 / (ground_count + 1), boa_direct1 / (ground_count + 1), \
+           boa_diffuse2 / (ground_count + 1), boa_direct2 / (ground_count + 1), theta_in
+
+
+# %% vary number of photons
+n_photon = np.arange(1, 20002, 5000)
+plot_data1 = np.empty((len(n_photon), 11))
+h = 0
+for x in range(len(n_photon)):
+    plot_data1[h] = monte_carlo(tau=10, omega=0.999, g=0.9, n_photon=n_photon[x])
+    h += 1
+    print(h / (len(n_photon)))
+df = pandas.DataFrame({"tau": plot_data1[:, 0], "omega": plot_data1[:, 1], "g": plot_data1[:, 2],
+                       "FTOA": plot_data1[:, 3], "FBOA": plot_data1[:, 4], "Absorbed": plot_data1[:, 5]})
+df.to_csv("C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data1.csv",
+          index=False)
+
+# %% vary cloud optical thickness, single scattering albedo and asymmetry parameter
+tau = np.array(range(1, 11))  # cloud optical thickness
+omega = np.array([0.9, 0.99, 1])  # single scattering albedo
+g = np.array([-0.9, -0.5, -0.01, 0.5, 0.9])  # asymmetry parameter
+plot_data2 = np.empty((len(tau) * len(omega) * len(g), 11))
+h = 0
+for i in range(len(tau)):
+    for j in range(len(omega)):
+        for k in range(len(g)):
+            plot_data2[h] = monte_carlo(tau=tau[i], omega=omega[j], g=g[k], n_photon=5000)
+            h += 1
+            print(h/(len(tau) * len(omega) * len(g)))
+
+df1 = pandas.DataFrame({"tau": plot_data2[:, 0], "omega": plot_data2[:, 1], "g": plot_data2[:, 2],
+                        "FTOA": plot_data2[:, 3], "FBOA": plot_data2[:, 4], "Absorbed": plot_data2[:, 5],
+                        "BOA_diffuse1": plot_data2[:, 6], "BOA_direct1": plot_data2[:, 7],
+                        "BOA_diffuse2": plot_data2[:, 8], "BOA_direct2": plot_data2[:, 9]})
+df1.to_csv(
+    "C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data2_B.csv",
+    index=False)
+
+# %% vary cloud optical thickness, solar zenith angle and asymmetry parameter
+tau = np.array(range(1, 11))  # cloud optical thickness
+g = np.array([-0.9, -0.5, -0.01, 0.5, 0.9])  # asymmetry parameter
+theta = np.arange(1, 82, 20)
+plot_data3 = np.empty((len(tau) * len(theta) * len(g), 11))
+h = 0
+for i in range(len(tau)):
+    for j in range(len(g)):
+        for k in range(len(theta)):
+            plot_data3[h] = monte_carlo(tau=tau[i], omega=1, g=g[j], n_photon=5000,
+                                        theta_in=theta[k])
+            h += 1
+            print(h/(len(tau) * len(theta) * len(g)))
+
+df2 = pandas.DataFrame({"tau": plot_data3[:, 0], "omega": plot_data3[:, 1], "g": plot_data3[:, 2],
+                        "FTOA": plot_data3[:, 3], "FBOA": plot_data3[:, 4], "Absorbed": plot_data3[:, 5],
+                        "BOA_diffuse1": plot_data3[:, 6], "BOA_direct1": plot_data3[:, 7],
+                        "BOA_diffuse2": plot_data3[:, 8], "BOA_direct2": plot_data3[:, 9],
+                        "theta": plot_data3[:, 10]})
+df2.to_csv(
+    "C:/Users/Johannes/Nextcloud/Studium/Atmosphaerische_Strahlung/Atmo_Strahlung/ex09_plot_data3_B.csv",
+    index=False)
+
+
+```
+
+
+## Plotting the results
+
+```{r Input from python, message=TRUE, warning=TRUE, include=FALSE}
+library("tidyr")
+delta_tau_layer_depend <- read.csv("./delta_tau_layer_depend.csv")
+delta_tau_layer_depend_g <- gather(delta_tau_layer_depend, key = Class, value = Irradiance, FBOA, FTOA)
+
+plot_data1 <- read.csv("./ex09_plot_data1.csv")
+plot_data1$n_photon <- seq(from=1, to=20001, by=5000)
+plot_data1 <- plot_data1[-1,]
+plot_data1_g <- gather(plot_data1, key = Class, value = Irradiance, FTOA,
+                       FBOA, Absorbed)
+plot_data1_g$tau <- as.factor(plot_data1_g$tau)
+plot_data1_g$omega <- as.factor(plot_data1_g$omega)
+plot_data1_g$g <- as.factor(plot_data1_g$g)
+plot_data1_g$n_photon <- as.factor(plot_data1_g$n_photon)
+plot_data1_g$Class <- as.factor(plot_data1_g$Class)
+
+plot_data2_B <- read.csv("./ex09_plot_data2_B.csv")
+plot_data2_B_g <- gather(plot_data2_B, key = Class, value = Irradiance, FTOA, FBOA, Absorbed)
+plot_data2_B_g$omega <- as.factor(plot_data2_B_g$omega)
+plot_data2_B_g$g <- as.factor(plot_data2_B_g$g)
+plot_data2_B_g$Class <- as.factor(plot_data2_B_g$Class)
+
+plot_data3_B <- read.csv("./ex09_plot_data3_B.csv")
+plot_data3_B <- plot_data3_B[, -(4:6)]
+plot_data3_B_g <- gather(plot_data3_B, key = Class, value = FBOA, BOA_diffuse1, 
+                           BOA_direct1, BOA_diffuse2, BOA_direct2)
+plot_data3_B_g$omega <- as.factor(plot_data3_B_g$omega)
+plot_data3_B_g$g <- as.factor(plot_data3_B_g$g)
+plot_data3_B_g$Class <- as.factor(plot_data3_B_g$Class)
+plot_data3_B_g$theta <- as.factor(plot_data3_B_g$theta)
+  
+```
+
+### Layer Number Dependency (Fig. 1)
+
+First of all the dependence of the model output on the thickness of each cloud layer $(\Delta\tau)$ is tested. Therefore the cloud optical thickness $\tau$ is fixed to $10$ and the number of layers in this cloud is varied. The result shows that from roughly layer 25 onward there is no real difference in the model output anymore. To allow for uncertainties a layer number of $50$ for $\tau=10$ is deemed appropriate. This in turn leads to a $\Delta\tau$ of $0.2$. This value is used as a default for the model. The number of layer for each cloud is then easily calculated depending on its overall optical thickness: $$n_{layer}=\tau / \Delta\tau$$
+
+```{r Plotting, echo=FALSE, fig.cap="Layer Number Dependency of the Irradiance"}
+library("ggplot2")
+library("latex2exp")
+delta_tau_depend <- ggplot(data = delta_tau_layer_depend_g)+
+  geom_point(aes(n_layer, Irradiance, color = Class))+
+  geom_line(aes(n_layer, Irradiance, color = Class))+
+  labs(title="Layer Number Dependency of the Irradiance")+
+  ylab("Percent")+
+  xlab("Number of Layers")
+print(delta_tau_depend)
+
+```
+
+### Photon Number Dependency (Fig. 2)
+
+To see what amount of photons have to be run through the model a simple test is made. The results show no visible difference between $5,000$ and $20,000$ photons. Therefore the number of photons is set to: $$n_{photon}=5000$$
+
+```{r echo=FALSE, fig.cap="Photon Number Dependency of the Irradiance"}
+photon_depend <- ggplot(data = plot_data1_g)+
+  geom_point(aes(n_photon, Irradiance, color = Class))+
+  labs(title="Photon Number Dependency of the Irradiance")+
+  ylab("Percent")+
+  xlab("Number of Photons")
+print(photon_depend)
+```
+
+### Task A (Fig. 3)
+
+The following graph is facetted and shows the Dependency of the Irradiance of the optical thickness $\tau$ with respect to the single scattering albedo $\tilde\omega \, (0.9, 0.99, 1)$ and the asymmetry parameter $g \, (-0.9 - 0.9)$.  
+The absorbed fraction of photons is highest at a low $\tilde\omega$ and a high $g$ (bottom left of graph), which is in line with the explanations from exercise 8. With a decrease in $\tilde\omega$ and $g$ more radiation is scattered forward and can be increasingly absorbed.  
+An increase in $g$ also leads to more $F^\downarrow_{BOA}$ which is countered by an higher optical thickness of the cloud. A more negative $g$, meaning mostly backward scattering, has an opposite effekt leading to increased $F^\uparrow_{TOA}$ which is enforced by higher values of $\tau$. 
+In general it can be said that an in crease in $\tau$ leads to more $F^\uparrow_{TOA}$ and less $F^\downarrow_{BOA}$.
+
+```{r echo=FALSE, fig.cap="Optical Thickness Dependency of the Irradiance with Respect to Single Scattering Albedo and Asymmertry Parameter"}
+all_depend <- ggplot(data = plot_data2_B_g)+
+  geom_point(aes(tau, Irradiance, color = Class))+
+  geom_line(aes(tau, Irradiance, color = Class))+
+  facet_grid(g~omega)+
+  labs(title="Optical Thickness Dependency of the Irradiance with Respect to \n 
+       Single Scattering Albedo and Asymmertry Parameter")+
+  ylab("Percent")+
+  xlab("Optical Thickness")
+print(all_depend)
+```
+
+### Task B (Fig. 4)
+
+Now the diffuse fraction  $f_{diff}=F^\downarrow_{BOA,diff}/F^\downarrow_{BOA}$ is investigated. As can be seen the two methods for differentiating $F^\downarrow_{BOA}$ differ strongly for optically thin clouds $(\tau < 5)$ but show the same for $\tau > 5$. This is probably due to the lack of precision in method 2 for it classifies all $F^\downarrow_{BOA}$ as diffuse (BOA_diffuse2).  
+But from method 1 it can be said that a increase of $\tau$ and of the solar zenith angle $\theta_0$ leads to an increase in $f_{diff}$.  
+Higher values of the asymmetry parameter $g$ seem to lead to an higher $f_{diff}$.
+
+```{r echo=FALSE, fig.cap="Diffuse and Direct Fraction of Downward Irradiance in Dependence of Optical Thickness, Solar Zenith Angle and Asymmetry Parameter"}
+fboa_plot <- ggplot(data = plot_data3_B_g)+
+  geom_point(aes(tau, FBOA, color = Class))+
+  geom_line(aes(tau, FBOA, color = Class))+
+  facet_grid(g~theta)+
+  labs(title = "Diffuse and Direct Fraction of Downward Irradiance in Dependence of\n Optical Thickness, Solar Zenith Angle and Asymmetry Parameter")+
+  ylab("Percent")+
+  xlab("Optical Thickness")
+print(fboa_plot)
+```
